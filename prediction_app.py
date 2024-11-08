@@ -2,50 +2,51 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
 
-# Load the scaler
-try:
-    with open('scaler.pkl', 'rb') as file:
-        scaler = pickle.load(file)
-except Exception as e:
-    st.error(f"Failed to load scaler: {e}")
+# Load scaler
+with open('scaler.pkl', 'rb') as f:
+    scaler = pickle.load(f)
 
-# Load the LSTM model
-try:
-    lstm_model = load_model('lstm_model.h5')
-except Exception as e:
-    st.error(f"Failed to load LSTM model: {e}")
+# Load LSTM model
+lstm_model = load_model('lstm_model.h5')
 
-# Load the SVM classifier
-try:
-    with open('svm_classifier.pkl', 'rb') as file:
-        svm_classifier = pickle.load(file)
-except Exception as e:
-    st.error(f"Failed to load SVM classifier: {e}")
+# Load SVM classifier
+with open('svm_classifier.pkl', 'rb') as f:
+    svm_classifier = pickle.load(f)
 
-# Define the prediction function
 def make_prediction(input_data):
-    # Preprocess input data
-    input_scaled = scaler.transform(input_data)
-    input_lstm = input_scaled.reshape((input_scaled.shape[0], 1, input_scaled.shape[1]))
+    # Pastikan input_data dalam bentuk 2D sebelum membuat DataFrame
+    input_data_2d = np.array(input_data).reshape(1, -1)
+    input_df = pd.DataFrame(input_data_2d, columns=[
+        'gender', 'age', 'hypertension', 'heart_disease', 'ever_married', 
+        'work_type', 'residence_type', 'avg_glucose_level', 'bmi', 'smoking_status'
+    ])
 
-    # Extract features using the LSTM model
+    # Transform data
+    input_transformed = scaler.transform(input_df)
+
+    # Ubah menjadi bentuk 3D untuk LSTM
+    input_lstm = input_transformed.reshape((1, 1, input_transformed.shape[1]))
+
+    # Prediksi fitur dari model LSTM
     lstm_features = lstm_model.predict(input_lstm)
 
-    # Make prediction using the SVM model
-    prediction = svm_classifier.predict(lstm_features)
-    return prediction
+    # Gabungkan fitur LSTM dan input yang di-scaled
+    final_input = np.concatenate([lstm_features, input_transformed], axis=1)
 
-# Streamlit app display
-st.title("Stroke Prediction Application")
+    # Prediksi akhir dari SVM
+    prediction = svm_classifier.predict(final_input)
+    return prediction[0]
 
-# Collect input from user
-st.header("Enter Patient Information")
+# Streamlit UI
+st.title('Prediksi Stroke')
+st.write('Masukkan data untuk memprediksi kemungkinan terjadinya stroke.')
+
+# Input form untuk pengguna
 gender = st.selectbox("Gender", ["Male", "Female"])
-age = st.number_input("Age", min_value=0, max_value=120)
+age = st.number_input("Age", min_value=0, max_value=100)
 hypertension = st.selectbox("Hypertension", [0, 1])
 heart_disease = st.selectbox("Heart Disease", [0, 1])
 ever_married = st.selectbox("Ever Married", ["Yes", "No"])
@@ -78,10 +79,12 @@ input_data = pd.DataFrame({
     'smoking_status': [smoking_status]
 })
 
-# Predict button
-if st.button("Predict"):
+# Tampilkan prediksi jika tombol ditekan
+if st.button('Prediksi'):
     prediction = make_prediction(input_data)
-    if prediction[0] == 1:
-        st.write("The patient is at risk of stroke.")
+    
+    # Menampilkan hasil prediksi
+    if prediction > 0.5:
+        st.write("Kemungkinan besar Anda mengalami stroke.")
     else:
-        st.write("The patient is not at risk of stroke.")
+        st.write("Kemungkinan besar Anda tidak mengalami stroke.")
