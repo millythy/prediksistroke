@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 from tensorflow.keras.models import load_model
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # Load the preprocessor
 with open('preprocessor.pkl', 'rb') as f:
@@ -24,16 +25,17 @@ def make_prediction(input_data):
     ])
 
     # Transform data using preprocessor
-    input_transformed = preprocessor.transform(input_df)
-
+    input_data_transformed = preprocessor.transform(input_df)
+    print(f'Dimensi input setelah preprocessor: {input_data_transformed.shape}')
+    
     # Reshape into 3D for LSTM
-    input_lstm = input_transformed.reshape((1, 1, input_transformed.shape[1]))
+    input_lstm = input_data_transformed.reshape((1, 1, input_data_transformed.shape[1]))
 
     # Generate LSTM model features
     lstm_features = lstm_model.predict(input_lstm)
 
     # Combine LSTM features and scaled input
-    final_input = np.concatenate([lstm_features, input_transformed], axis=1)
+    final_input = np.concatenate([lstm_features, input_data_transformed], axis=1)
 
     # Final prediction from SVM
     prediction = svm_classifier.predict(final_input)

@@ -1,6 +1,6 @@
 streamlit
 pandas
 numpy
+pkl
 tensorflow
-h5py
 scikit-learn
