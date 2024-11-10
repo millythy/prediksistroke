@@ -2,12 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
 
-# Load scaler
-with open('scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
+# Load the preprocessor
+with open('preprocessor.pkl', 'rb') as f:
+    preprocessor = pickle.load(f)
 
 # Load LSTM model
 lstm_model = load_model('lstm_model.h5')
@@ -17,26 +16,26 @@ with open('svm_classifier.pkl', 'rb') as f:
     svm_classifier = pickle.load(f)
 
 def make_prediction(input_data):
-    # Pastikan input_data dalam bentuk 2D sebelum membuat DataFrame
+    # Ensure input_data is in 2D before creating a DataFrame
     input_data_2d = np.array(input_data).reshape(1, -1)
     input_df = pd.DataFrame(input_data_2d, columns=[
         'gender', 'age', 'hypertension', 'heart_disease', 'ever_married', 
         'work_type', 'residence_type', 'avg_glucose_level', 'bmi', 'smoking_status'
     ])
 
-    # Transform data
-    input_transformed = scaler.transform(input_df)
+    # Transform data using preprocessor
+    input_transformed = preprocessor.transform(input_df)
 
-    # Ubah menjadi bentuk 3D untuk LSTM
+    # Reshape into 3D for LSTM
     input_lstm = input_transformed.reshape((1, 1, input_transformed.shape[1]))
 
-    # Prediksi fitur dari model LSTM
+    # Generate LSTM model features
     lstm_features = lstm_model.predict(input_lstm)
 
-    # Gabungkan fitur LSTM dan input yang di-scaled
+    # Combine LSTM features and scaled input
     final_input = np.concatenate([lstm_features, input_transformed], axis=1)
 
-    # Prediksi akhir dari SVM
+    # Final prediction from SVM
     prediction = svm_classifier.predict(final_input)
     return prediction[0]
 
@@ -44,7 +43,7 @@ def make_prediction(input_data):
 st.title('Prediksi Stroke')
 st.write('Masukkan data untuk memprediksi kemungkinan terjadinya stroke.')
 
-# Input form untuk pengguna
+# User input form
 gender = st.selectbox("Gender", ["Male", "Female"])
 age = st.number_input("Age", min_value=0, max_value=100)
 hypertension = st.selectbox("Hypertension", [0, 1])
@@ -79,11 +78,11 @@ input_data = pd.DataFrame({
     'smoking_status': [smoking_status]
 })
 
-# Tampilkan prediksi jika tombol ditekan
-if st.button('Prediksi'):
+# Show prediction when button is clicked
+if st.button('Predict'):
     prediction = make_prediction(input_data)
     
-    # Menampilkan hasil prediksi
+    # Display prediction result
     if prediction > 0.5:
         st.write("Kemungkinan besar Anda mengalami stroke.")
     else:
